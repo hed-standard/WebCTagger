@@ -1,0 +1,9 @@
+.scaled-iframe {
+    transform: scale(var(--scale-factor));
+    width: calc(1/var(--scale-factor) * 100%);
+    height: calc(1/var(--scale-factor) * 100%);
+}
+.iframe-container {
+    zoom: 0.75;
+    overflow: hidden;
+}
