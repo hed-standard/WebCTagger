@@ -1,11 +1,12 @@
 import io
 from flask import Blueprint, render_template, request
 import json
-from hed import Sidecar, load_schema_version, TabularInput
+from hed import HedString, Sidecar, load_schema_version, TabularInput
 from hed.errors import ErrorHandler, get_printable_issue_string
 from hed.tools.analysis.annotation_util import strs_to_sidecar, to_strlist
 from hed.tools.analysis.event_manager import EventManager
 from hed.tools.analysis.hed_tag_manager import HedTagManager
+from hed.validator import HedValidator
 import pandas as pd
 from .openai_api import prompt_engineer
 from .create_hed_prompts import get_hed_vocab
@@ -14,7 +15,8 @@ bp = Blueprint("pages", __name__)
 
 @bp.route("/")
 def home():
-    return render_template("pages/home.html")
+    hed_tags = get_hed_vocab()
+    return render_template("pages/home.html", hed_tags=hed_tags)
 
 @bp.route("/about")
 def about():
@@ -23,19 +25,60 @@ def about():
 
 @bp.route("/validate", methods=["GET", "POST"])
 def validate():
-    data = request.get_json(force=True)
-    y = json.dumps(data)
+    print(request.form)
+    validation_type = request.form['type']
     check_for_warnings = False
     schema = load_schema_version('8.2.0')
-    sidecar = strs_to_sidecar(y) #Sidecar(y)
-    error_handler = ErrorHandler(check_for_warnings=check_for_warnings)
-    issues = sidecar.validate(schema, name=sidecar.name, error_handler=error_handler)
+    data = request.form['hed']
+    if validation_type == "sidecar":
+        data_json = json.loads(data)
+        print(data_json)
+        data_json = json.dumps(data_json)
+        print(data_json)
+        sidecar = strs_to_sidecar(data_json) 
+        error_handler = ErrorHandler(check_for_warnings=check_for_warnings)
+        issues = sidecar.validate(schema, name=sidecar.name, error_handler=error_handler)
+    else:
+        #   # This is to handle any definitions
+        #    sidecar = strs_to_sidecar(in_json)
+        #    def_dict = sidecar.get_def_dict(schema)
+    
+        # Convert to short
+        # hedObj = HedString(in_string, schema, def_dict=def_dict)
+        hedObj = HedString(data, schema)
+        short_string = hedObj.get_as_form('short_tag')
+
+        # Validate the string
+        error_handler = ErrorHandler(check_for_warnings=check_for_warnings)
+        # validator = HedValidator(schema, def_dict)
+        validator = HedValidator(schema)
+        issues = validator.validate(hedObj, allow_placeholders=False, error_handler=error_handler)
+
     if issues:
         data = get_printable_issue_string(issues, f"Validation issues")
         response = data
     else:
         response = "No issues found"
     return response #you have to return json here as explained in the js file
+
+def validateString(hedStr):
+    check_for_warnings = False
+    schema = load_schema_version('8.2.0')
+    hedObj = HedString(hedStr, schema)
+    short_string = hedObj.get_as_form('short_tag')
+
+    # Validate the string
+    error_handler = ErrorHandler(check_for_warnings=check_for_warnings)
+    # validator = HedValidator(schema, def_dict)
+    validator = HedValidator(schema)
+    issues = validator.validate(hedObj, allow_placeholders=False, error_handler=error_handler)
+
+    if issues:
+        data = get_printable_issue_string(issues, f"Validation issues")
+        response = data
+    else:
+        response = "No issues found"
+    return response
 
 @bp.route("/assemble", methods=["GET", "POST"])
 def assemble():
@@ -58,7 +101,7 @@ def assemble():
 @bp.route("/generate", methods=["GET", "POST"])
 def generate_tags():
     description = request.form['description']
-    hed_vocab = get_hed_vocab()
+    hed_vocab = ",".join(get_hed_vocab())
     messages=[
         {"role": "system", "content": "You are a precise translator."},
         {"role": "system", "content": f"Translate these sentences into tags using only tags from the provided list: {hed_vocab}."},
@@ -66,14 +109,18 @@ def generate_tags():
         {"role": "assistant", "content": "(Foreground-view, ((Item-count, High), Ingestible-object)), (Background-view, ((Human, Body, Agent-trait/Adult), Outdoors, Furnishing, Natural-feature/Sky, Urban, Man-made-object))"},
         {"role": "user", "content": "In the foreground view, there is an adult human body, an adult male face turned away from the viewer, and a high number of furnishings. In the background view, there are ingestible objects, furnishings, a room indoors, man-made objects, and an assistive device."},
         {"role": "assistant", "content": "(Foreground-view, ((Item-count/1, (Human, Body, Agent-trait/Adult)), (Item-count/1, (Human, Body, (Face, Away-from), Male, Agent-trait/Adult)), ((Item-count, High), Furnishing))), (Background-view, (Ingestible-object, Furnishing, Room, Indoors, Man-made-object, Assistive-device))"},
-        {"role": "user", "content": "In the foreground view, we see a male adolescent human, characterized by his body and traits as an agent. He is interacting with a man-made object, possibly engaged in play or using it in some way. In the background view, the setting is outdoors, specifically showing a natural feature such as an ocean."},
+        {"role": "user", "content": description},
         # {"role": "assistant", "content": "(Foreground-view, ((Item-count/1, (Human, Body, Agent-trait/Adult)), (Item-count/1, (Human, Body, (Face, Away-from), Male, Agent-trait/Adult)), ((Item-count, High), Furnishing))), (Background-view, (Ingestible-object, Furnishing, Room, Indoors, Man-made-object, Assistive-device))"},
     ]
     output = prompt_engineer(messages,"gpt-3.5-turbo")
+    validation_result = validateString(output)
 
     ## TODO: try few shots
-    print('ground truth: (Foreground-view, ((Item-count/1, ((Human, Human-agent), Body, Male, Agent-trait/Adolescent)), (Play, (Item-count/1, Man-made-object)))), (Background-view, (Outdoors, Natural-feature/Ocean))')
-    print(output)
+    result = {
+        "tags": output,
+        "validation_issues": validation_result
+    }
+    return result
     # messages=[
     #         {"role": "system", "content": "You are a helpful assistant."},
     #         {"role": "user", "content": f"Given this list of tags: {hed_vocab}."},

@@ -98,7 +98,7 @@ def get_hed_vocab():
             all_nodes = soup.find_all('node')
             node_names = [node.find('name', recursive=False).string for node in all_nodes]
         
-            return ','.join(node_names)
+            return node_names
         else:
             print(f"Failed to retrieve data from the URL. Status code: {response.status_code}")
 

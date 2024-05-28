@@ -1,10 +1,11 @@
-import openai
+from openai import OpenAI
 import os
 # import pandas as pd
 # import subprocess
 import argparse
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI()
+# openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def get_openaikey():
     return os.getenv("OPENAI_API_KEY")
@@ -25,17 +26,17 @@ def train(model):
 def to_hed(desc):
 	print(f"Event description prompt: {desc}")
 	prompt = desc + '->'
-	res = openai.Completion.create(
+	res = client.chat.completions.create(
 		model='davinci:ft-sccn:hed-nodef-2023-08-15-07-32-36',
 		prompt=prompt)
-	return res['choices'][0]['text']
+	return res.choices[0].message
 
 def prompt_engineer(messages, model):
-	response = openai.ChatCompletion.create(
-    model=model,
-    messages=messages
-)
-	return response['choices'][0]['message']['content']
+	response = client.chat.completions.create(
+		model=model,
+		messages=messages
+	)
+	return response.choices[0].message.content 
     
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser(
