@@ -90,7 +90,8 @@
         <label id="view_schema" for="hedAnnotation" >Description:</label>
         <textarea class="form-control mb-3" id="event-description" rows="2" oninput="saveDescription()"></textarea>
         <div class="mb-3">
-          <label id="view_schema" for="hedAnnotation" >HED annotation:</label>
+          <label id="view_schema" for="hedAnnotation" class="bold" style="font-weight: bold">HED annotation:</label>
+          <a href="https://www.hed-resources.org/en/latest/HedAnnotationQuickstart.html#a-recipe-for-simple-annotation">See guide</a>
           <textarea class="form-control mb-3" id="hedAnnotation" rows="6" onchange="updateEventsJson()"></textarea>
           <div class="row">
             <div class="col">
@@ -264,7 +265,7 @@
         <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#accordionExample">
           <div class="accordion-body">
             <div class="row">
-              <pre id="json-display" class="border"></pre>
+              <pre id="json-display" class="border" style="font-family: Helvetica;"></pre>
             </div>
             <div class="d-flex justify-content-between">
               <button class="btn btn-outline-primary" onclick="validateEventsJson()">Validate</button>
@@ -277,11 +278,11 @@
     <div class="accordion" id="tsvaccordion">
       <div class="accordion-item">
         <h2 class="accordion-header">
-          <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#tsvCollapse" aria-expanded="true" aria-controls="tsvCollapse">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#tsvCollapse" aria-expanded="true" aria-controls="tsvCollapse">
             Current events.tsv content
           </button>
         </h2>
-        <div id="tsvCollapse" class="accordion-collapse collapse show" data-bs-parent="#tsvaccordion">
+        <div id="tsvCollapse" class="accordion-collapse collapse" data-bs-parent="#tsvaccordion">
           <div class="accordion-body">
             <div class="d-flex justify-content-between">
               <input type="file" name="eventstsv" id="eventstsv" class="form-control" style="display: none;" onchange="importEventsTSV()">
@@ -315,7 +316,7 @@
           </div>
           <div class="row mb-3">
             <label for="event-description">Description from events.json:</label>
-            <textarea class="form-control" id="event-description-generate-tags" rows="2"></textarea>
+            <textarea class="form-control" disabled id="event-description-generate-tags" rows="2"></textarea>
           </div>
           <div class="row mb-3 justify-content-center">
             <button class="btn btn-outline-success mb-2" id="generateTagLabel" onclick="generateHED()">Suggest tags</button>
@@ -370,6 +371,8 @@
             // display the content of the json file
             eventsinfoJson = JSON.stringify(eventsinfo, null, 2);
             jsontree = jsonview.renderJSON(eventsinfoJson, document.querySelector('#json-display'));
+            $('.json-key').css("font-family", "Helvetica");
+            $('.json-value').css("font-family", "Helvetica");
             jsonview.expand(jsontree);
 
             fields = getKeysFromEventsJson(eventsinfo);
@@ -488,6 +491,7 @@
         const value = document.getElementById('value-select').value;
         // get the HED annotation
         let hedAnnotation = document.getElementById('hedAnnotation').value;
+        // console.log(hedAnnotation)
         // update the eventsinfo dictionary
         if ($("#view_indentation").data('state')) {
         hedAnnotation = unindent_hed(hedAnnotation);
@@ -501,6 +505,8 @@
         jsonview.destroy(jsontree);
         }
         jsontree = jsonview.renderJSON(eventsinfoJson, document.querySelector('#json-display'));
+        $('.json-key').css("font-family", "Helvetica");
+        $('.json-value').css("font-family", "Helvetica");
         jsonview.expand(jsontree);
     }
 
@@ -520,14 +526,14 @@
 
     function validateEventsJson() {
         eventsinfoJson = JSON.stringify(eventsinfo, null, 2); 
-        $.post( "http://127.0.0.1:8000/validate", {'type': 'sidecar', 'hed': eventsinfoJson}, function( data ) {
+        $.post( "/validate", {'type': 'sidecar', 'hed': eventsinfoJson}, function( data ) {
         alert(data);
         });
     }
 
     function validateString() {
         eventsinfoJson = JSON.stringify(eventsinfo, null, 2); 
-        $.post( "http://127.0.0.1:8000/validate", {'type': 'string', 'hed': eventsinfoJson}, function( data ) {
+        $.post( "/validate", {'type': 'string', 'hed': eventsinfoJson}, function( data ) {
         alert(data);
         });
     }
@@ -644,6 +650,7 @@
             tabledata.push(Object.values(element));
             });
             const columnHeader = Object.keys(tsvdata[0]);
+            console.log(columnHeader)
             initTable('#tsv-display', columnHeader, tabledata);
         } catch (error) {
             console.error('Error parsing tsv:', error);
@@ -658,7 +665,7 @@
         eventsinfoJson = JSON.stringify(eventsinfo, null, 2);
         columnHeader = [];
         tabledata = [];
-        $.post( "http://127.0.0.1:8000/assemble", {"eventsjson": eventsinfoJson, "eventstsv": eventstsv} , function( hed ) {
+        $.post( "/assemble", {"eventsjson": eventsinfoJson, "eventstsv": eventstsv} , function( hed ) {
         // if hed is not empty
         if (hed) {
             tabledata = hed['data'];
@@ -707,6 +714,8 @@
       jsonview.destroy(jsontree);
       }
       jsontree = jsonview.renderJSON(eventsinfoJson, document.querySelector('#json-display'));
+      $('.json-key').css("font-family", "Helvetica");
+      $('.json-value').css("font-family", "Helvetica");
       jsonview.expand(jsontree);
       // close the modal event-description-modal
       // $('#event-description-modal').modal('toggle');
@@ -726,7 +735,7 @@
       description = getDescriptionFromLevel();
       $("#generateStatus").attr("hidden", false);
       $("#generateTagLabel").text("Generating suggestion using ChatGPT...")
-      $.post( "http://127.0.0.1:8000/generate", {"description": description} , function( result ) {
+      $.post( "/generate", {"description": description} , function( result ) {
         const generated_tags = result['tags'];
         const validation_issues = result['validation_issues'];
         $('#generated-tags-result').val(generated_tags);

@@ -551,8 +551,20 @@ function getSchemaNodes() {
         // add event listener to tag click
         $(this).on("dblclick", function() {
             var nodeName = $(this).attr("tag");
-            console.log(nodeName);
-            $("#hedAnnotation").append(", " + nodeName);
+            let currentText = $("#hedAnnotation").val();
+            // if current text is empty, add nodeName
+            if (currentText == "") {
+                $("#hedAnnotation").val(nodeName + ", ");
+            }
+            else {
+                // if current text ends with comma, add nodeName
+                if (currentText.endsWith(", ")) {
+                    $("#hedAnnotation").val(currentText + nodeName + ", ");
+                }
+                else 
+                    $("#hedAnnotation").val(currentText + ", " + nodeName + ", ");
+            }
+            updateEventsJson();
         });
 
     });    

@@ -1,5 +1,6 @@
 import io
 from flask import Blueprint, render_template, request
+from flask_cors import CORS
 import json
 from hed import HedString, Sidecar, load_schema_version, TabularInput
 from hed.errors import ErrorHandler, get_printable_issue_string
@@ -12,7 +13,7 @@ from .openai_api import prompt_engineer
 from .create_hed_prompts import get_hed_vocab
 
 bp = Blueprint("pages", __name__)
-
+CORS(bp)
 @bp.route("/")
 def home():
     hed_tags = get_hed_vocab()
@@ -25,32 +26,22 @@ def about():
 
 @bp.route("/validate", methods=["GET", "POST"])
 def validate():
-    print(request.form)
     validation_type = request.form['type']
     check_for_warnings = False
     schema = load_schema_version('8.2.0')
     data = request.form['hed']
     if validation_type == "sidecar":
         data_json = json.loads(data)
-        print(data_json)
         data_json = json.dumps(data_json)
-        print(data_json)
         sidecar = strs_to_sidecar(data_json) 
         error_handler = ErrorHandler(check_for_warnings=check_for_warnings)
         issues = sidecar.validate(schema, name=sidecar.name, error_handler=error_handler)
     else:
-        #   # This is to handle any definitions
-        #    sidecar = strs_to_sidecar(in_json)
-        #    def_dict = sidecar.get_def_dict(schema)
-    
-        # Convert to short
-        # hedObj = HedString(in_string, schema, def_dict=def_dict)
         hedObj = HedString(data, schema)
         short_string = hedObj.get_as_form('short_tag')
 
         # Validate the string
         error_handler = ErrorHandler(check_for_warnings=check_for_warnings)
-        # validator = HedValidator(schema, def_dict)
         validator = HedValidator(schema)
         issues = validator.validate(hedObj, allow_placeholders=False, error_handler=error_handler)
 
@@ -69,7 +60,6 @@ def validateString(hedStr):
 
     # Validate the string
     error_handler = ErrorHandler(check_for_warnings=check_for_warnings)
-    # validator = HedValidator(schema, def_dict)
     validator = HedValidator(schema)
     issues = validator.validate(hedObj, allow_placeholders=False, error_handler=error_handler)
 
@@ -110,7 +100,6 @@ def generate_tags():
         {"role": "user", "content": "In the foreground view, there is an adult human body, an adult male face turned away from the viewer, and a high number of furnishings. In the background view, there are ingestible objects, furnishings, a room indoors, man-made objects, and an assistive device."},
         {"role": "assistant", "content": "(Foreground-view, ((Item-count/1, (Human, Body, Agent-trait/Adult)), (Item-count/1, (Human, Body, (Face, Away-from), Male, Agent-trait/Adult)), ((Item-count, High), Furnishing))), (Background-view, (Ingestible-object, Furnishing, Room, Indoors, Man-made-object, Assistive-device))"},
         {"role": "user", "content": description},
-        # {"role": "assistant", "content": "(Foreground-view, ((Item-count/1, (Human, Body, Agent-trait/Adult)), (Item-count/1, (Human, Body, (Face, Away-from), Male, Agent-trait/Adult)), ((Item-count, High), Furnishing))), (Background-view, (Ingestible-object, Furnishing, Room, Indoors, Man-made-object, Assistive-device))"},
     ]
     output = prompt_engineer(messages,"gpt-3.5-turbo")
     validation_result = validateString(output)
@@ -121,10 +110,3 @@ def generate_tags():
         "validation_issues": validation_result
     }
     return result
-    # messages=[
-    #         {"role": "system", "content": "You are a helpful assistant."},
-    #         {"role": "user", "content": f"Given this list of tags: {hed_vocab}."},
-    #         {"role": "user", "content": f"And given this annotation: {output}."},
-    #         {"role": "user", "content": f"Highlight the tags that are from the list by captioning them with *"},
-    # ]
-    # opai.prompt_engineer(messages,"gpt-3.5-turbo")
