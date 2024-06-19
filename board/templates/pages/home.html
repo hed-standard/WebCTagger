@@ -69,39 +69,57 @@
 <div class="container">
     <div class="row mb-3">
       <div class="col-md-5">
-        <!--Show upload button and pass the file to populateFields function-->
-        <form action="/" method="post" enctype="multipart/form-data" class="mb-3">
-          <input type="file" name="file" id="file" class="form-control mb-3" style="display: none;" onchange="populateFields()">
-          <label for="file" class="btn btn-primary">Upload events.json</label>
-        </form>
-        <div class="input-group mb-3">
-          <label for="field-select" class="input-group-text">Event column</label>
-          <select class="form-select" aria-label="Default select example" id="field-select" onchange="populateFieldValues(this.value)">
-            <option selected>Column</option>
-          </select>
+        <div class="row">
+          <div class="col-md-6">
+            <!--Show upload button and pass the file to populateFields function-->
+            <form action="/" method="post" enctype="multipart/form-data" class="mb-3">
+              <input type="file" name="file" id="file" class="form-control mb-3" style="display: none;" onchange="populateFields()">
+              <label for="file" class="btn btn-primary">Upload events.json</label>
+            </form>
+          </div>
+          <div class="col-md-6">
+            <form action="/" method="post" enctype="multipart/form-data" class="mb-3">
+              <input type="file" name="event-file" id="event-file" class="form-control mb-3" style="display: none;" onchange="load_events_file()">
+              <label for="event-file" class="btn btn-primary">Upload events.tsv</label>
+            </form>
+          </div>
         </div>
-        <div class="input-group pl-3 mb-3">
-          <label for="value-select" class="input-group-text">Event column value</label>
-          <select class="form-select" aria-label="Multiple select example" rows="6" id="value-select" onchange="valueSelected()">
-            <option selected>Column value</option>
-          </select>
-        </div> 
-        
-        <label id="view_schema" for="hedAnnotation" >Description:</label>
-        <textarea class="form-control mb-3" id="event-description" rows="2" oninput="saveDescription()"></textarea>
-        <div class="mb-3">
-          <label id="view_schema" for="hedAnnotation" class="bold" style="font-weight: bold">HED annotation:</label>
-          <a href="https://www.hed-resources.org/en/latest/HedAnnotationQuickstart.html#a-recipe-for-simple-annotation">See guide</a>
-          <textarea class="form-control mb-3" id="hedAnnotation" rows="6" onchange="updateEventsJson()"></textarea>
-          <div class="row">
-            <div class="col">
-              <button type="button" id="view_indentation" class="btn btn-outline-primary" data-state="true" onclick="setIndentationMode()">Unindent tags</button>
-              <!-- <label class="btn" for="view_indentation">Indent tags</label> -->
-            </div>
-            <div class="col">
-              <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#generate-tags-modal" onclick="setupGenerateTags()">
-                Suggest tags (beta)
-              </button>
+        <div class="container" id="leading-prompt">
+          <p class="lead">Start by uploading BIDS-style <em>events.json/tsv</em> file</p>
+          <p class="lead">Or <a href="#" onclick="load_example_events_json()">load example events.json</a> file</p>
+        </div>
+        <div class="container" id="tagging-pane" hidden>
+          <div class="input-group mb-3">
+            <label for="field-select" class="input-group-text">Event column</label>
+            <select class="form-select" aria-label="Default select example" id="field-select" onchange="populateFieldValues(this.value)">
+              <option selected>Column</option>
+            </select>
+          </div>
+          <div class="input-group pl-3 mb-3">
+            <label for="value-select" class="input-group-text">Event column value</label>
+            <select class="form-select" aria-label="Multiple select example" rows="6" id="value-select" onchange="valueSelected()">
+              <option selected>Column value</option>
+            </select>
+          </div> 
+          
+          <label id="view_schema" for="hedAnnotation" >Description:</label>
+          <textarea class="form-control mb-3" id="event-description" rows="2" oninput="saveDescription()"></textarea>
+          <div class="mb-3">
+            <label id="view_schema" for="hedAnnotation" class="bold" style="font-weight: bold">HED annotation:</label>
+            <a href="https://www.hed-resources.org/en/latest/HedAnnotationQuickstart.html#a-recipe-for-simple-annotation">See guide</a>
+            <textarea class="form-control mb-3" id="hedAnnotation" rows="6" onchange="updateEventsJson()"></textarea>
+            <div class="row">
+              <div class="col-md-4">
+                <button type="button" id="view_indentation" class="btn btn-outline-primary" data-state="true" onclick="setIndentationMode()">Unindent tags</button>
+              </div>
+              <div class="col-md-4">
+                <button type="button" id="validate_string" class="btn btn-outline-primary" data-state="true" onclick="validateString()">Validate</button>
+              </div>
+              <div class="col-md-4">
+                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#generate-tags-modal" onclick="setupGenerateTags()">
+                  Suggest tags
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -326,11 +344,11 @@
           </div>
           <div class="row mb-3">
             <label for="generated-tags-result">Tag suggestions:</label>
-            <textarea class="form-control" id="generated-tags-result" rows="6"></textarea>
+            <textarea class="form-control" id="generated-tags-result" rows="2"></textarea>
           </div>
           <div class="row mb-3">
-            <label for="generated-tags-result">Validation issue(s):</label>
-            <textarea class="form-control" id="generated-tags-validation-result" rows="6"></textarea>
+            <label for="generated-tags-result">Chat history:</label>
+            <textarea class="form-control" id="generated-tags-validation-result" rows="10"></textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -347,6 +365,122 @@
     let jsontree = null;
     let eventstsv = "";
     let eventstable = null;
+    let example_eventsinfo = {
+      "type": {
+        "HED": {
+          "rt": "",
+          "square": "Sensory-event, Visual-presentation, (Image, (Square,Green, Size/10 cm))"
+        },
+        "Levels": {
+          "square": "A visual presentation of an image of a green square",
+          "rt": "Participant pressed a button to indicate a target"
+        }
+      }
+    }
+
+    function load_events_file() {
+      // clear the jsontree
+      if (jsontree) {
+        jsonview.destroy(jsontree);
+      }
+
+      // get the file input
+      const fileInput = document.getElementById('event-file');
+      // get the file
+      const file = fileInput.files[0];
+      // create a new FileReader
+      const reader = new FileReader();
+
+      reader.onload = function(event) {
+        const fileContent = event.target.result;
+        try {
+          $.post( "/generate_sidecar", {'event_file': fileContent}, function( data ) {
+            eventsinfoJson = data;
+            eventsinfo = JSON.parse(eventsinfoJson);
+            // display the content of the json file
+            jsontree = jsonview.renderJSON(eventsinfoJson, document.querySelector('#json-display'));
+            $('.json-key').css("font-family", "Helvetica");
+            $('.json-value').css("font-family", "Helvetica");
+            jsonview.expand(jsontree);
+
+            // clear description and annotation boxes
+            document.getElementById('event-description').value = "";
+            document.getElementById('hedAnnotation').value = "";
+
+            fields = getKeysFromEventsJson(eventsinfo);
+            // get the field-select
+            const fieldSelect = document.getElementById('field-select');
+            // clear the field-select
+            fieldSelect.innerHTML = '';
+            // populate the field-select
+            fields.forEach(field => {
+              const option = document.createElement('option');
+              option.value = field;
+              option.text = field;
+              fieldSelect.appendChild(option);
+            });
+
+            // populate the value-select with the values of the first field
+            populateFieldValues(fields[0]);
+          });
+        }
+        catch (error) {
+          console.error('Error parsing events file:', error);
+          alert('Error parsing events file.');
+        }
+      }
+
+      reader.readAsText(file);
+
+      // if tagging-pane is hidden, show it
+      if ($("#tagging-pane").is(":hidden")) {
+        $("#tagging-pane").attr("hidden", false);
+      }
+      // if leading-prompt is not hidden, hide it
+      if (!$("#leading-prompt").is(":hidden")) {
+        $("#leading-prompt").attr("hidden", true);
+      }
+    }
+
+    function load_example_events_json() {
+      eventsinfo = example_eventsinfo;
+      // display the content of the json file
+      eventsinfoJson = JSON.stringify(eventsinfo, null, 2);
+      jsontree = jsonview.renderJSON(eventsinfoJson, document.querySelector('#json-display'));
+      $('.json-key').css("font-family", "Helvetica");
+      $('.json-value').css("font-family", "Helvetica");
+      jsonview.expand(jsontree);
+
+      // clear description and annotation boxes
+      document.getElementById('event-description').value = "";
+      document.getElementById('hedAnnotation').value = "";
+
+      fields = getKeysFromEventsJson(eventsinfo);
+      // get the field-select
+      const fieldSelect = document.getElementById('field-select');
+      // clear the field-select
+      fieldSelect.innerHTML = '';
+      // populate the field-select
+      fields.forEach(field => {
+      const option = document.createElement('option');
+      option.value = field;
+      option.text = field;
+      fieldSelect.appendChild(option);
+      });
+
+      // populate the value-select with the values of the first field
+      populateFieldValues(fields[0]);
+
+      // if tagging-pane is hidden, show it
+      if ($("#tagging-pane").is(":hidden")) {
+          $("#tagging-pane").attr("hidden", false);
+      }
+      // if leading-prompt is not hidden, hide it
+      if (!$("#leading-prompt").is(":hidden")) {
+        $("#leading-prompt").attr("hidden", true);
+      }
+    }
+
     // const schema_nodes = JSON.parse('{{ hed_tags | tojson }}');
     // create a function to populate the field-select with the fields from the json file
     function populateFields() {
@@ -375,6 +509,11 @@
             $('.json-value').css("font-family", "Helvetica");
             jsonview.expand(jsontree);
 
+            // clear description and annotation boxes
+            document.getElementById('event-description').value = "";
+            document.getElementById('hedAnnotation').value = "";
+
+
             fields = getKeysFromEventsJson(eventsinfo);
             // get the field-select
             const fieldSelect = document.getElementById('field-select');
@@ -390,6 +529,7 @@
 
             // populate the value-select with the values of the first field
             populateFieldValues(fields[0]);
+
         } catch (error) {
             console.error('Error parsing JSON:', error);
             alert('Error parsing JSON file.');
@@ -397,6 +537,15 @@
         };
 
         reader.readAsText(file);
+
+        // if tagging-pane is hidden, show it
+        if ($("#tagging-pane").is(":hidden")) {
+          $("#tagging-pane").attr("hidden", false);
+        }
+        // if leading-prompt is not hidden, hide it
+        if (!$("#leading-prompt").is(":hidden")) {
+          $("#leading-prompt").attr("hidden", true);
+        }
     }
 
     function populateFieldValues(field) {
@@ -415,11 +564,12 @@
         const valueSelect = document.getElementById('value-select');
         valueSelect.innerHTML = '';
         values.forEach(value => {
-        const option = document.createElement('option');
-        option.value = value;
-        option.text = value;
-        valueSelect.appendChild(option);
+          const option = document.createElement('option');
+          option.value = value;
+          option.text = value;
+          valueSelect.appendChild(option);
         });
+        valueSelected();
     }
 
     function getKeysFromEventsJson(data) {
@@ -449,9 +599,6 @@
 
     // add an event listener to the hedAnnotation textarea
     document.getElementById('hedAnnotation').addEventListener('input', updateEventsJson);
-    function showSchema() {
-        window.open('https://www.hedtags.org/display_hed_ctagger.html', 'HED Schema browser', 'popup=true');
-    }
 
     function valueSelected() {
         // get description
@@ -481,7 +628,6 @@
         } else {
         document.getElementById('hedAnnotation').value = hedAnnotation;
         }
-
     }
 
     function updateEventsJson() {
@@ -508,6 +654,7 @@
         $('.json-key').css("font-family", "Helvetica");
         $('.json-value').css("font-family", "Helvetica");
         jsonview.expand(jsontree);
+
     }
 
     function setIndentationMode() {
@@ -532,10 +679,12 @@
     }
 
     function validateString() {
-        eventsinfoJson = JSON.stringify(eventsinfo, null, 2); 
-        $.post( "/validate", {'type': 'string', 'hed': eventsinfoJson}, function( data ) {
-        alert(data);
-        });
+      hedString = document.getElementById('hedAnnotation').value;
+      // strip space, tabs and newlines
+      hedString = hedString.replace(/[\t\n ]/g, '');
+      $.post( "/validate", {'type': 'string', 'hed': hedString}, function( data ) {
+      alert(data);
+      });
     }
 
     function indent_hed(hed_string) {
@@ -735,9 +884,9 @@
       description = getDescriptionFromLevel();
       $("#generateStatus").attr("hidden", false);
       $("#generateTagLabel").text("Generating suggestion using ChatGPT...")
-      $.post( "/generate", {"description": description} , function( result ) {
+      $.post( "/generate_agent", {"description": description} , function( result ) {
         const generated_tags = result['tags'];
-        const validation_issues = result['validation_issues'];
+        const validation_issues = result['chat'];
         $('#generated-tags-result').val(generated_tags);
         $('#generated-tags-validation-result').val(validation_issues);
         $("#generateStatus").attr("hidden", true);
