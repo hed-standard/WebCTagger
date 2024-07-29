@@ -55,6 +55,7 @@ function load(schema_name) {
         }
     }
     else {
+        console.log('here')
         // add schema names to schema dropdown button
         var html = '<a class="dropdown-item" id="schemaStandard" + " onclick="loadDefaultSchema(\'standard\')">standard</a>';
         $("#schemaDropdown").append(html);
@@ -149,7 +150,7 @@ function getLibarySchemas() {
  * While building, reverse order for nice display in the dropdown
  */
 function getGithubSchema(schema_name) {
-    var githubSchema = {"version": [], "download_link": [], "isDeprecated": []};
+    var githubSchema = {"version": [], "download_link": []};
     if (schema_name == "standard") {
         xml_path = github_endpoint + "/standard_schema/hedxml";
     }
@@ -165,30 +166,29 @@ function getGithubSchema(schema_name) {
             // add to global dict
             githubSchema["version"].push(version);
             githubSchema["download_link"].push(link);
-            githubSchema["isDeprecated"].push(false);
         }
         })
     }});
     Object.keys(githubSchema).forEach(key => githubSchema[key].reverse());
-    // get deprecated schemas
-    var hedxml_url = xml_path + "/deprecated";
-    var deprecated = {"version": [], "download_link": [], "isDeprecated": []};
-    $.ajax({dataType: "json", url: hedxml_url, async: false, success: function(data) {
-        data.forEach(function(item,index) {
-        if (item["name"].includes('xml')) {
-                var version = item["name"].split('(.*)(.xml)')[0];
-                var link = item["download_url"];
-                // add to global dict
-                deprecated["version"].push(version);
-                deprecated["download_link"].push(link);
-                deprecated["isDeprecated"].push(true);
-        }
-        })
-    }});
-    Object.keys(deprecated).forEach(key => deprecated[key].reverse());
-    Object.keys(deprecated).forEach(key => {
-    deprecated[key].forEach(elem => githubSchema[key].push(elem))
-    });
+    // // get deprecated schemas
+    // var hedxml_url = xml_path + "/deprecated";
+    // var deprecated = {"version": [], "download_link": [], "isDeprecated": []};
+    // $.ajax({dataType: "json", url: hedxml_url, async: false, success: function(data) {
+    //     data.forEach(function(item,index) {
+    //     if (item["name"].includes('xml')) {
+    //             var version = item["name"].split('(.*)(.xml)')[0];
+    //             var link = item["download_url"];
+    //             // add to global dict
+    //             deprecated["version"].push(version);
+    //             deprecated["download_link"].push(link);
+    //             deprecated["isDeprecated"].push(true);
+    //     }
+    //     })
+    // }});
+    // Object.keys(deprecated).forEach(key => deprecated[key].reverse());
+    // Object.keys(deprecated).forEach(key => {
+    // deprecated[key].forEach(elem => githubSchema[key].push(elem))
+    // });
     return githubSchema;
 }
 
@@ -201,14 +201,14 @@ function buildSchemaVersionDropdown(schema_name) {
 
     // get versions based on provided schema name
     githubSchema = getGithubSchema(schema_name);
-    var isDeprecatedTitleAdded = false;
+    // var isDeprecatedTitleAdded = false;
     // build schema dropdown from Github repo
     for (var i=0; i < githubSchema["version"].length; i++) {
-        if (githubSchema["isDeprecated"][i] && !isDeprecatedTitleAdded) {
-            var html = '<a class="dropdown-header"><b>' + 'Deprecated' + '</b></a>';
-            $("#schemaVersionDropdown").append(html);
-            isDeprecatedTitleAdded = true;
-        } 
+        // if (githubSchema["isDeprecated"][i] && !isDeprecatedTitleAdded) {
+        //     var html = '<a class="dropdown-header"><b>' + 'Deprecated' + '</b></a>';
+        //     $("#schemaVersionDropdown").append(html);
+        //     isDeprecatedTitleAdded = true;
+        // } 
         var html = '<a class="dropdown-item" id="schema' + githubSchema["version"][i] + '" onclick="loadSchema(\'' + schema_name + '\', \'' + githubSchema["download_link"][i] + '\')">' + githubSchema["version"][i] + '</a>';
         $("#schemaVersionDropdown").append(html);
     }
@@ -472,6 +472,7 @@ function toLevel(level) {
 function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
+
 function toNode(nodeName) {
     let node = $("a[tag='"+nodeName+"'");
     console.log(node);
@@ -503,7 +504,6 @@ function getSchemaNodes() {
     /**
      * Set autocomplete behavior
      */
-    allowDeprecated = $("#searchDeprecatedTags")[0].checked;
     // clear array
     schemaNodes.length = 0;
     allSchemaNodes.length = 0;
@@ -513,10 +513,6 @@ function getSchemaNodes() {
     /* Initialize schema nodes list and set behavior of search box */
     $("a[name='schemaNode']").each(function() {
         attributes = getAttributesOfNode($(this));
-        if (!allowDeprecated && attributes.includes('deprecatedFrom')) {
-            return;
-        }
-        
         var nodeName = $(this).attr("tag");
         allSchemaNodes.push(nodeName);
 

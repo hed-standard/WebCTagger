@@ -14,7 +14,7 @@ from hed.validator import HedValidator
 import pandas as pd
 from .openai_api import prompt_engineer
 from .create_hed_prompts import get_hed_vocab
-from autogen import ConversableAgent
+from autogen.agentchat import ConversableAgent
 
 bp = Blueprint("pages", __name__)
 CORS(bp)
