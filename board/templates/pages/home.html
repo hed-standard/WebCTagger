@@ -73,7 +73,7 @@
           <div class="col-md-6">
             <!--Show upload button and pass the file to populateFields function-->
             <form action="/" method="post" enctype="multipart/form-data" class="mb-3">
-              <input type="file" name="file" id="file" class="form-control mb-3" style="display: none;" onchange="populateFields()">
+              <input type="file" name="file" id="file" class="form-control mb-3" style="display: none;" onchange="loadEventJson()">
               <label for="file" class="btn btn-primary">Upload events.json</label>
             </form>
           </div>
@@ -462,7 +462,7 @@
 
     // const schema_nodes = JSON.parse('{{ hed_tags | tojson }}');
     // create a function to populate the field-select with the fields from the json file
-    function populateFields() {
+    function loadEventJson() {
         // clear the jsontree
         if (jsontree) {
         jsonview.destroy(jsontree);
@@ -500,10 +500,10 @@
             fieldSelect.innerHTML = '';
             // populate the field-select
             fields.forEach(field => {
-            const option = document.createElement('option');
-            option.value = field;
-            option.text = field;
-            fieldSelect.appendChild(option);
+              const option = document.createElement('option');
+              option.value = field;
+              option.text = field;
+              fieldSelect.appendChild(option);
             });
 
             // populate the value-select with the values of the first field
@@ -535,10 +535,17 @@
         } else if ('Levels' in fieldDict) {
             valuesDict = fieldDict['Levels'];
         } else {
-            alert('Key "Levels" or "HED" not found in valuesDict');
+            alert('Key "Levels" or "HED" not found in field ' + field);
             return;
         }
-        values = Object.keys(valuesDict);
+
+        // if valuesDict is a string
+        if (typeof valuesDict === 'string') {
+          values = ['HED'];
+        }
+        else {
+          values = Object.keys(valuesDict);
+        }
         // populate the value-select with the values
         const valueSelect = document.getElementById('value-select');
         valueSelect.innerHTML = '';
@@ -599,13 +606,17 @@
 
         // set HED annotation
         // get the HED annotation
-        const hedAnnotation = eventsinfo[field]['HED'][value];
+        if (value == 'HED') {
+          hedAnnotation = eventsinfo[field]['HED'];
+        } else {
+          hedAnnotation = eventsinfo[field]['HED'][value];
+        }
         // update the hedAnnotation textarea
         const view_indentation = $("#view_indentation").data("state")
         if (view_indentation) {
-        document.getElementById('hedAnnotation').value = indent_hed(hedAnnotation);
+          document.getElementById('hedAnnotation').value = indent_hed(hedAnnotation);
         } else {
-        document.getElementById('hedAnnotation').value = hedAnnotation;
+          document.getElementById('hedAnnotation').value = hedAnnotation;
         }
     }
 
@@ -621,7 +632,12 @@
         if ($("#view_indentation").data('state')) {
         hedAnnotation = unindent_hed(hedAnnotation);
         }
-        eventsinfo[field]['HED'][value] = hedAnnotation;
+
+        if (value == 'HED') {
+          eventsinfo[field]['HED'] = hedAnnotation;
+        } else {
+          eventsinfo[field]['HED'][value] = hedAnnotation;
+        }
         // update the eventsjson textarea
         eventsinfoJson = JSON.stringify(eventsinfo, null, 2);
 
@@ -652,7 +668,7 @@
 
     function validateEventsJson() {
         eventsinfoJson = JSON.stringify(eventsinfo, null, 2); 
-        $.post( "/validate", {'type': 'sidecar', 'hed': eventsinfoJson}, function( data ) {
+        $.post( "/validate", {'type': 'sidecar', 'hed': eventsinfoJson, 'schema_name': global_schema_name, 'schema_version': global_schema_version}, function( data ) {
         alert(data);
         });
     }
@@ -661,7 +677,7 @@
       hedString = document.getElementById('hedAnnotation').value;
       // strip space, tabs and newlines
       hedString = hedString.replace(/[\t\n ]/g, '');
-      $.post( "/validate", {'type': 'string', 'hed': hedString}, function( data ) {
+      $.post( "/validate", {'type': 'string', 'hed': hedString, 'schema_name': global_schema_name, 'schema_version': global_schema_version}, function( data ) {
       alert(data);
       });
     }
@@ -711,7 +727,12 @@
         if ($("#view_indentation").data('state')) {
         hedAnnotation = unindent_hed(hedAnnotation);
         }
-        eventsinfo[field]['HED'][value] = hedAnnotation;
+        if (value == 'HED') {
+          eventsinfo[field]['HED'] = hedAnnotation;
+        } else {
+          eventsinfo[field]['HED'][value] = hedAnnotation;
+        }
+        // eventsinfo[field]['HED'][value] = hedAnnotation;
     }
 
     function initTable(id, columnHeader, tabledata) {
@@ -863,7 +884,7 @@
       description = getDescriptionFromLevel();
       $("#generateStatus").attr("hidden", false);
       $("#generateTagLabel").text("Generating suggestion using ChatGPT...")
-      $.post( "/generate_agent", {"description": description} , function( result ) {
+      $.post( "/generate_agent", {"description": description, 'schema_name': global_schema_name, 'schema_version': global_schema_version} , function( result ) {
         const generated_tags = result['tags'];
         const validation_issues = result['chat'];
         $('#generated-tags-result').val(generated_tags);

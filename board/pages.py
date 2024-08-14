@@ -32,7 +32,12 @@ def about():
 def validate():
     validation_type = request.form['type']
     check_for_warnings = False
-    schema = load_schema_version('8.2.0')
+    schema_name = request.form['schema_name'].lower()
+    schema_version = request.form['schema_version']
+    if schema_name != 'standard':
+        schema = load_schema_version(f'{schema_name}_{schema_version}')
+    else:
+        schema = load_schema_version(f'{schema_version}')
     data = request.form['hed']
     if validation_type == "sidecar":
         data_json = json.loads(data)
@@ -59,7 +64,13 @@ def validate():
 @bp.route("/validate_string", methods=["GET", "POST"])
 def validateString(hedStr):
     check_for_warnings = False
-    schema = load_schema_version('8.3.0')
+    schema_name = request.form['schema_name'].lower()
+    schema_version = request.form['schema_version']
+    schema = load_schema_version(f'{schema_name}_{schema_version}')
+    if schema_name != 'standard':
+        schema = load_schema_version(f'{schema_name}_{schema_version}')
+    else:
+        schema = load_schema_version(f'{schema_version}')
     hedObj = HedString(hedStr, schema)
     short_string = hedObj.get_as_form('short_tag')
 
@@ -75,8 +86,12 @@ def validateString(hedStr):
         response = "No issues found"
     return response
 
-def validate_hed_string_agent(hed_string: str) -> str:
-    schema = load_schema_version('8.3.0')
+def validate_hed_string_agent(hed_string: str, schema_name='standard', schema_version='Latest') -> str:
+    print(schema_name, schema_version)
+    if schema_name != 'standard':
+        schema = load_schema_version(f'{schema_name}_{schema_version}')
+    else:
+        schema = load_schema_version(f'{schema_version}')
     check_for_warnings = True
     data = hed_string
     hedObj = HedString(data, schema)
@@ -126,14 +141,16 @@ def assemble():
 @bp.route("/generate", methods=["GET", "POST"])
 def generate_tags():
     description = request.form['description']
+    schema_name = request.form['schema_name'].lower()
+    schema_version = request.form['schema_version']
     hed_vocab = ",".join(get_hed_vocab())
     messages=[
         {"role": "system", "content": "You are a precise translator."},
         {"role": "system", "content": f"Translate these sentences into tags using only tags from the provided list: {hed_vocab}."},
         {"role": "user", "content": "The foreground view consists of a large number of ingestible objects, indicating a high quantity. The background view includes an adult human body, outdoors in a setting that includes furnishings, natural features such as the sky, and man-made objects in an urban environment."},
-        {"role": "assistant", "content": "(Foreground-view, ((Item-count, High), Ingestible-object)), (Background-view, ((Human, Body, Agent-trait/Adult), Outdoors, Furnishing, Natural-feature/Sky, Urban, Man-made-object))"},
+        {"role": "assistant", "content": f"Schema name: {schema_name}, Schema version: {schema_version}, HED string: (Foreground-view, ((Item-count, High), Ingestible-object)), (Background-view, ((Human, Body, Agent-trait/Adult), Outdoors, Furnishing, Natural-feature/Sky, Urban, Man-made-object))"},
         {"role": "user", "content": "In the foreground view, there is an adult human body, an adult male face turned away from the viewer, and a high number of furnishings. In the background view, there are ingestible objects, furnishings, a room indoors, man-made objects, and an assistive device."},
-        {"role": "assistant", "content": "(Foreground-view, ((Item-count/1, (Human, Body, Agent-trait/Adult)), (Item-count/1, (Human, Body, (Face, Away-from), Male, Agent-trait/Adult)), ((Item-count, High), Furnishing))), (Background-view, (Ingestible-object, Furnishing, Room, Indoors, Man-made-object, Assistive-device))"},
+        {"role": "assistant", "content": f"Schema name: {schema_name}, Schema version: {schema_version}, HED string: (Foreground-view, ((Item-count/1, (Human, Body, Agent-trait/Adult)), (Item-count/1, (Human, Body, (Face, Away-from), Male, Agent-trait/Adult)), ((Item-count, High), Furnishing))), (Background-view, (Ingestible-object, Furnishing, Room, Indoors, Man-made-object, Assistive-device))"},
         {"role": "user", "content": description},
     ]
     output = prompt_engineer(messages,"gpt-3.5-turbo")
@@ -149,18 +166,22 @@ def generate_tags():
 @bp.route("/generate_agent", methods=["GET", "POST"])
 def generate_tags_agent():
     description = request.form['description']
+    schema_name = request.form['schema_name'].lower()
+    schema_version = request.form['schema_version']
+    
     config_list = [{"model": "gpt-4", "api_key": os.getenv("OPENAI_API_KEY")}]
     hed_vocab = ",".join(get_hed_vocab())
 
+    print(schema_name, schema_version)
     assistant = ConversableAgent(
         name="CodeWriter",
-        system_message="You are an annotator.\n"
+        system_message="You are a annotator.\n"
         f"You use the vocabulary given to you to create appropriate annotations: {hed_vocab}.\n"
         "Here are some examples\n"
         "Text description: 'The foreground view consists of a large number of ingestible objects, indicating a high quantity. The background view includes an adult human body, outdoors in a setting that includes furnishings, natural features such as the sky, and man-made objects in an urban environment.'\n"
-        "Annotation: '(Foreground-view, ((Item-count, High), Ingestible-object)), (Background-view, ((Human, Body, Agent-trait/Adult), Outdoors, Furnishing, Natural-feature/Sky, Urban, Man-made-object))'\n"
+        f"Schema name: {schema_name}, Schema version: {schema_version}, Annotation: '(Foreground-view, ((Item-count, High), Ingestible-object)), (Background-view, ((Human, Body, Agent-trait/Adult), Outdoors, Furnishing, Natural-feature/Sky, Urban, Man-made-object))'\n"
         "Text description: In the foreground view, there is an adult human body, an adult male face turned away from the viewer, and a high number of furnishings. In the background view, there are ingestible objects, furnishings, a room indoors, man-made objects, and an assistive device.\n"
-        "Annotation: '(Foreground-view, ((Item-count/1, (Human, Body, Agent-trait/Adult)), (Item-count/1, (Human, Body, (Face, Away-from), Male, Agent-trait/Adult)), ((Item-count, High), Furnishing))), (Background-view, (Ingestible-object, Furnishing, Room, Indoors, Man-made-object, Assistive-device))'\n"
+        f"Schema name: {schema_name}, Schema version: {schema_version}, Annotation: '(Foreground-view, ((Item-count/1, (Human, Body, Agent-trait/Adult)), (Item-count/1, (Human, Body, (Face, Away-from), Male, Agent-trait/Adult)), ((Item-count, High), Furnishing))), (Background-view, (Ingestible-object, Furnishing, Room, Indoors, Man-made-object, Assistive-device))'\n"
         "Once there is no error returned by the validator, the task is done. Returns 'TERMINATE'.",
         llm_config={"config_list": config_list},
         is_termination_msg=lambda msg: "TERMINATE" in msg['content'].strip().upper(),
@@ -173,7 +194,7 @@ def generate_tags_agent():
     )
 
     # # Register the tool signature with the assistant agent.
-    assistant.register_for_llm(name="validate_hed_string", description="An effective translator")(validate_hed_string_agent)
+    assistant.register_for_llm(name="validate_hed_string", description=f"An effective translator")(validate_hed_string_agent)
 
     # Register the tool function with the user proxy agent.
     user_proxy.register_for_execution(name="validate_hed_string")(validate_hed_string_agent)

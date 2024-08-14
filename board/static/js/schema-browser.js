@@ -7,6 +7,8 @@ var github_endpoint = "https://api.github.com/repos/hed-standard/hed-schemas/con
 var github_raw_endpoint = "https://raw.githubusercontent.com/hed-standard/hed-schemas/main";
 //Get the button
 let scrollToTopBtn = null;
+var global_schema_name = "standard";
+var schema_version = 'Latest';
 /**
  * Onload call. Build schema selection and schema versions dropdown
  * and load default schema accordingly to url params
@@ -253,26 +255,30 @@ function getSchemaURL(schema_name, version) {
  */
 function loadSchema(schema_name, url)
 {
-    let re = /HED.*xml/;
-    let schemaVersion = url.match(re)[0];
-    if ((schemaVersion.charAt(3) >= "8" && !schemaVersion.includes('alpha')) || url.includes('test')) // assuming schemaVersion has form 'HEDx.x.x.*'
-        useNewFormat = true;
-    else 
-        useNewFormat = false;
+    // let re = /HED.*xml/;
+    // let schemaVersion = url.match(re)[0];
+    // if ((schemaVersion.charAt(3) >= "8" && !schemaVersion.includes('alpha')) || url.includes('test')) // assuming schemaVersion has form 'HEDx.x.x.*'
+    //     useNewFormat = true;
+    // else 
+    //     useNewFormat = false;
         
-    if (url.includes('deprecated')) // schema link will be */deprecated/*.xml if deprecated
-        var isDeprecated = true;
-    else 
-        var isDeprecated = false;
+    // if (url.includes('deprecated')) // schema link will be */deprecated/*.xml if deprecated
+    //     var isDeprecated = true;
+    // else 
+    //     var isDeprecated = false;
 
     $.get(url, function(data,status) {
         xml = $.parseXML(data);
-        displayResult(xml, useNewFormat, isDeprecated);
+        $xml = $( xml )
+        schema_version = $xml.find('HED').attr('version');
+        global_schema_name = schema_name;
+        global_schema_version = schema_version;
+        $('#dropdownSchemaVersionButton').text('Version: ' + schema_version);
+        displayResult(xml); //, useNewFormat, isDeprecated);
         parseMergedSchema();
         toLevel(1);
         getSchemaNodes();
     });
-    $('#dropdownSchemaVersionButton').text('Version: ' + schemaVersion.split('.xml')[0]);
 
     // set prerelease switch btn href
     if (schema_name.includes('prerelease')) {
@@ -281,6 +287,8 @@ function loadSchema(schema_name, url)
     }
     else
         $('.prerelease-switch').attr('href', replaceUrlParam("/display_hed_prerelease.html", 'schema', schema_name + '_prerelease'));
+
+    return [schema_name, schema_version];
 }
 
 function loadDefaultSchema(schema_name) {
@@ -333,10 +341,10 @@ function loadXSL(filename) {
  * @param xml   XML content of new schema
  * @param useNewFormat   boolean to indicate whether the schema is in new format (>= 8.0.0-alpha.3)
  */
-function displayResult(xml, useNewFormat, isDeprecated)
+function displayResult(xml) //, useNewFormat, isDeprecated)
 {
-    if (useNewFormat)
-        xsl = loadXSL('static/js/hed-schema.xsl');
+    // if (useNewFormat)
+    xsl = loadXSL('static/js/hed-schema.xsl');
     // code for IE
     if (window.ActiveXObject || xhttp.responseType == "msxml-document")
     {
@@ -350,7 +358,7 @@ function displayResult(xml, useNewFormat, isDeprecated)
         xsltProcessor.importStylesheet(xsl);
         resultDocument = xsltProcessor.transformToFragment(xml, document);
     }
-    if (useNewFormat) {
+    // if (useNewFormat) {
             $("#schema").html(resultDocument.getElementById("schema").innerHTML);
             var prologue = resultDocument.getElementById("prologue").innerHTML;
             $("#prologue").html(prologue.replaceAll("\n", "<br>"));
@@ -363,18 +371,19 @@ function displayResult(xml, useNewFormat, isDeprecated)
             $("#schemaAttributeDefinitions").html(resultDocument.getElementById("schemaAttributeDefinitions").innerHTML);
             $("#propertyDefinitions").html(resultDocument.getElementById("propertyDefinitions").innerHTML);
             var versionText = "HED " + resultDocument.getElementById("hed-version").innerHTML;
-            versionText = isDeprecated ? versionText + " (deprecated)" : versionText;
+            // versionText = isDeprecated ? versionText + " (deprecated)" : versionText;
             $("#hed").html(versionText);
-    }
-    else {
-        $("#schema").html(resultDocument);
-        $("#schemaDefinitions").hide();
-            var versionText = "HED " + $("#hed-version").text();
-        versionText = isDeprecated ? versionText + " (deprecated)" : versionText;
-            $("#hed").html(versionText);
-    }
+    // }
+    // else {
+    //     $("#schema").html(resultDocument);
+    //     $("#schemaDefinitions").hide();
+    //         var versionText = "HED " + $("#hed-version").text();
+    //     versionText = isDeprecated ? versionText + " (deprecated)" : versionText;
+    //         $("#hed").html(versionText);
+    // }
     // set info board behavior
-    $("a").mouseover({format: useNewFormat},infoBoardMouseoverEvent);
+    // $("a").mouseover({format: useNewFormat},infoBoardMouseoverEvent);
+    $("a").mouseover(infoBoardMouseoverEvent);
 
     // set font colors
     $(".list-group-item:not(.inLibrary),[data-bs-toggle='collapse']").css('color','#0072B2');
@@ -383,32 +392,32 @@ function displayResult(xml, useNewFormat, isDeprecated)
 }
 
 function infoBoardMouseoverEvent(event) {
-        var useNewFormat = event.data.format;
+        // var useNewFormat = event.data.format;
         var selected = $(event.target);
         var node = selected;
         var path = getPath(selected);
 	// console.log(path);
         var nodeName = selected.text();
         var finalText = "";
-        if (useNewFormat) {
-            selected.nextAll(`.attribute[name='${nodeName}']`).each(function(index) {
-                var parsed = $(this).text();
-                if (parsed.includes(",")) {
-                    var trimmed = parsed.trim();
-                    var trimmed = trimmed.replace(/(^,)|(,$)/g, "")
-                    finalText += "<p>" + trimmed + "</p>";
-                }
-                else
-                    finalText += "<p>" + parsed.trim() + "</p>";
-            });
-        }
-        else {
+        // if (useNewFormat) {
+        //     selected.nextAll(`.attribute[name='${nodeName}']`).each(function(index) {
+        //         var parsed = $(this).text();
+        //         if (parsed.includes(",")) {
+        //             var trimmed = parsed.trim();
+        //             var trimmed = trimmed.replace(/(^,)|(,$)/g, "")
+        //             finalText += "<p>" + trimmed + "</p>";
+        //         }
+        //         else
+        //             finalText += "<p>" + parsed.trim() + "</p>";
+        //     });
+        // }
+        // else {
             var attrs = selected.next(".attribute").text();
                 parsed = attrs.split(','); // attributes are written in comma separated string
                 parsed = parsed.map(x => "<p>" + x.trim() + "</p>");
                 parsed = parsed.slice(0,parsed.length-1); // last item is empty (result of extra , at the end)
                 finalText = parsed.join("");
-        }
+        // }
             finalText = finalText == null || finalText.length == 0 ? "" : finalText;
         var disp_div = ["schemaNode", "unitClassDef", "unitModifierDef", "valueClassDef", "attributeDef", "propertyDef"];
         if (disp_div.includes(selected.attr('name'))) {
