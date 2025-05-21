@@ -86,7 +86,7 @@ def validateString(hedStr):
         response = "No issues found"
     return response
 
-def validate_hed_string_agent(hed_string: str, schema_name='standard', schema_version='Latest') -> str:
+def validate_hed_string_agent(hed_string: str, schema_name='standard', schema_version='8.3.0') -> str:
     print(schema_name, schema_version)
     if schema_name != 'standard':
         schema = load_schema_version(f'{schema_name}_{schema_version}')
@@ -169,7 +169,7 @@ def generate_tags_agent():
     schema_name = request.form['schema_name'].lower()
     schema_version = request.form['schema_version']
     
-    config_list = [{"model": "gpt-4", "api_key": os.getenv("OPENAI_API_KEY")}]
+    config_list = [{"model": "gpt-3.5-turbo-0125", "api_key": os.getenv("OPENAI_API_KEY")}]
     hed_vocab = ",".join(get_hed_vocab())
 
     print(schema_name, schema_version)
